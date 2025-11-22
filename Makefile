@@ -1,4 +1,7 @@
-CFLAGS=-Wall -Wextra -std=c11 -pedantic -ggdb
+CFLAGS=-Wall -Wextra -std=c11 -pedantic -ggdb -gdwarf-4
+
+# CC=aarch64-apple-darwin24-gcc-15
+CC=gcc
 
 heap: main.c
-	cc $(CFLAGS) main.c -o heap
+	$(CC) $(CFLAGS) main.c -o heap
