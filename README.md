@@ -2,11 +2,13 @@
 
 ## Introduction
 
-This proj is an easy practice to understanding allocting space from memory.
+This proj is an simple implementation to understanding allocting space from memory.
 
-It don't really calloct memory in heap, and I did't use function like mmap() or others like that.
+It don't really alloct memory in heap, and I did't use function like mmap() or others like that.
 
 I use a **large ARRAY** enough to simulate a heap. BTW, just make us focus on GC.
+
+Actually, the real heap is more complex than my own struct.
 
 ## Resource
 
@@ -18,6 +20,6 @@ Thanks for TSODING.
 
 ## Implementation
 
-Here are two Data Struct to track memory allocting and recording the free memories.
+Here are two Data Struct to track memory allocation and recording the free memory blocks.
 
-And I use sliding window as a filter to sift those NULL pointer or memory which is not used. 
+And I use sliding window as a filter to sift those NULL pointer or unused memory blocks. 

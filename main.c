@@ -23,15 +23,6 @@ typedef struct HeapChunkList {
   Chunk chunks[CHUNK_LIST_CAP];
 } ChunkList;
 
-// 使用链表记录空闲内存
-typedef struct FreeChunk {
-  void *start;
-  size_t size;
-  struct FreeNode *next;
-} FreeChunk;
-
-FreeChunk *free_list = NULL;
-
 ChunkList alloced_chunks = {0};
 ChunkList heap_freed = {0};
 
@@ -41,19 +32,43 @@ int chunk_list_insert(ChunkList *list, void *ptr, size_t size) {
 
   list->chunks[list->count].start = ptr;
   list->chunks[list->count].size = size;
+
+  // 实现排序，为实现合并空内存做准备
+  for (size_t i = list->count;
+       i > 0 && list->chunks[i].start < list->chunks[i - 1].start; --i) {
+    const Chunk tmp = list->chunks[i];
+
+    list->chunks[i] = list->chunks[i - 1];
+    list->chunks[i - 1] = tmp;
+  }
   list->count++;
 
   return list->count;
 }
 
-// Bad O(N)
+int chunk_cmp(const void *a, const void *b) {
+  const Chunk *a_chunk = a;
+  const Chunk *b_chunk = b;
+  if (a_chunk->start < b_chunk->start)
+    return -1;
+  if (a_chunk->start > b_chunk->start)
+    return 1;
+  return 0;
+}
+
 int chunk_list_find(ChunkList *list, void *ptr) {
-  for (size_t i = 0; i < list->count; i++) {
-    if (list->chunks[i].start == ptr) {
-      return i;
-    }
-  }
-  return -1;
+  // 实现二分查找
+  Chunk key = {
+      .start = ptr,
+  };
+  Chunk *result = bsearch(&key, list->chunks, list->count,
+                          sizeof(alloced_chunks.chunks[0]), chunk_cmp);
+
+  if (result != NULL) {
+    assert(list->chunks <= result);
+    return result - list->chunks;
+  } else
+    return -1;
 }
 
 void chunk_list_remove(ChunkList *list, size_t index) {
@@ -90,15 +105,31 @@ void heap_free(void *ptr) {
     return;
   }
 
+  // TODO:: implement a memory comflact
   size_t size = alloced_chunks.chunks[index].size;
 
-  chunk_list_insert(&heap_freed, ptr, size);
-  chunk_list_remove(&alloced_chunks, index);
+  chunk_list_insert(&heap_freed, alloced_chunks.chunks[index].start, size);
+  chunk_list_remove(&alloced_chunks, (size_t)index);
 
   printf("Freed memory at %p, size: %zu\n", ptr, size);
 }
 
+void chunk_list_dump(ChunkList *list, ChunkList *freelist) {
+  printf("ChunkList : %zu \n", list->count);
+  for (int i = 0; i < list->count; i++) {
+    printf("start; %p  size: %zu\n", list->chunks[i].start,
+           list->chunks[i].size);
+  }
+  printf("Freed ChunkList: %zu\n", freelist->count);
+  for (int i = 0; i < freelist->count; i++) {
+    printf("start; %p  size: %zu\n", freelist->chunks[i].start,
+           freelist->chunks[i].size);
+  }
+}
+
 int main(void) {
   void *root = heap_alloc(20);
+  chunk_list_dump(&alloced_chunks, &heap_freed);
   heap_free(root);
+  chunk_list_dump(&alloced_chunks, &heap_freed);
 }
