@@ -88,7 +88,7 @@ void *heap_alloc(size_t size) {
   if (size <= 0)
     return NULL;
 
-  for (int i = 0; i < heap_freed.count; i++) {
+  for (size_t i = 0; i < heap_freed.count; i++) {
     if (heap_freed.chunks[i].size >= size) {
       const Chunk chunk = heap_freed.chunks[i];
       if (chunk.size >= size) {
@@ -99,7 +99,7 @@ void *heap_alloc(size_t size) {
         const size_t tail_size = chunk.size - size;
 
         if (tail_size > 0) {
-          chunk_list_insert(&heap_freed, chunk.start + size, tail_size);
+          chunk_list_insert(&heap_freed, (char *)chunk.start + size, tail_size);
         }
 
         return chunk.start;
@@ -130,12 +130,12 @@ void heap_free(void *ptr) {
 
 void chunk_list_dump(ChunkList *list, ChunkList *freelist) {
   printf("ChunkList : %zu \n", list->count);
-  for (int i = 0; i < list->count; i++) {
+  for (size_t i = 0; i < list->count; i++) {
     printf("start; %p  size: %zu\n", list->chunks[i].start,
            list->chunks[i].size);
   }
   printf("Freed ChunkList: %zu\n", freelist->count);
-  for (int i = 0; i < freelist->count; i++) {
+  for (size_t i = 0; i < freelist->count; i++) {
     printf("start; %p  size: %zu\n", freelist->chunks[i].start,
            freelist->chunks[i].size);
   }
@@ -143,6 +143,7 @@ void chunk_list_dump(ChunkList *list, ChunkList *freelist) {
 
 int main(void) {
   void *tab[10];
+  chunk_list_dump(&alloced_chunks, &heap_freed);
   for (int i = 1; i <= 10; i++) {
     tab[i] = heap_alloc(i);
   }
