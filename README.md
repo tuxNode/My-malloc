@@ -23,3 +23,7 @@ Thanks for TSODING.
 Here are two Data Struct to track memory allocation and recording the free memory blocks.
 
 And I use sliding window as a filter to sift those NULL pointer or unused memory blocks. 
+
+## Limitation
+
+1. Could alloct a memory which the size is 0 ! (Malloc in glibc could return a only pointer, it also could be freed)
