@@ -11,7 +11,7 @@
 #define HEAP_ALLOCTED_CAP 1024
 
 char heap[HEAP_CAP_BYTES] = {0};
-size_t heap_size = 0; // 存放大数组的size
+// size_t heap_size = 0; // 存放大数组的size
 
 typedef struct HeapChunk {
   void *start;
@@ -24,7 +24,10 @@ typedef struct HeapChunkList {
 } ChunkList;
 
 ChunkList alloced_chunks = {0};
-ChunkList heap_freed = {0};
+ChunkList heap_freed = {
+    .count = 1,
+    .chunks = {[0] = {.start = heap, .size = sizeof(heap)}},
+};
 
 int chunk_list_insert(ChunkList *list, void *ptr, size_t size) {
   if (list->count >= CHUNK_LIST_CAP)
@@ -84,15 +87,26 @@ void chunk_list_remove(ChunkList *list, size_t index) {
 void *heap_alloc(size_t size) {
   if (size <= 0)
     return NULL;
-  if (heap_size + size > HEAP_CAP_BYTES)
-    return NULL;
-  if (alloced_chunks.count >= CHUNK_LIST_CAP)
-    return NULL;
 
-  void *ptr = heap + heap_size;
-  chunk_list_insert(&alloced_chunks, ptr, size);
-  heap_size += size;
-  return ptr;
+  for (int i = 0; i < heap_freed.count; i++) {
+    if (heap_freed.chunks[i].size >= size) {
+      const Chunk chunk = heap_freed.chunks[i];
+      if (chunk.size >= size) {
+        chunk_list_remove(&heap_freed, i);
+        chunk_list_insert(&alloced_chunks, chunk.start, size);
+
+        // 切分内存块，将未分配的块中剩余内存记录大小
+        const size_t tail_size = chunk.size - size;
+
+        if (tail_size > 0) {
+          chunk_list_insert(&heap_freed, chunk.start + size, tail_size);
+        }
+
+        return chunk.start;
+      }
+    }
+  }
+  return NULL;
 }
 
 void heap_free(void *ptr) {
@@ -128,8 +142,11 @@ void chunk_list_dump(ChunkList *list, ChunkList *freelist) {
 }
 
 int main(void) {
-  void *root = heap_alloc(20);
+  void *tab[10];
+  for (int i = 1; i <= 10; i++) {
+    tab[i] = heap_alloc(i);
+  }
   chunk_list_dump(&alloced_chunks, &heap_freed);
-  heap_free(root);
+  heap_free(tab[5]);
   chunk_list_dump(&alloced_chunks, &heap_freed);
 }
