@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// 模拟每次系统调用
+// 定义内存块大小
 #define HEAP_CAP_BYTES 640000
 // 定义追踪器的大小
 #define CHUNK_LIST_CAP 1024
@@ -28,6 +28,7 @@ ChunkList heap_freed = {
     .count = 1,
     .chunks = {[0] = {.start = heap, .size = sizeof(heap)}},
 };
+ChunkList tmp_chunks = {0};
 
 int chunk_list_insert(ChunkList *list, void *ptr, size_t size) {
   if (list->count >= CHUNK_LIST_CAP)
@@ -49,6 +50,7 @@ int chunk_list_insert(ChunkList *list, void *ptr, size_t size) {
   return list->count;
 }
 
+/*
 int chunk_cmp(const void *a, const void *b) {
   const Chunk *a_chunk = a;
   const Chunk *b_chunk = b;
@@ -58,20 +60,27 @@ int chunk_cmp(const void *a, const void *b) {
     return 1;
   return 0;
 }
+*/
 
 int chunk_list_find(ChunkList *list, void *ptr) {
+  for (size_t i = 0; i < list->count; i++) {
+    if (list->chunks[i].start == ptr) {
+      return (int)i;
+    }
+  }
+  return -1;
   // 实现二分查找
-  Chunk key = {
-      .start = ptr,
-  };
-  Chunk *result = bsearch(&key, list->chunks, list->count,
-                          sizeof(alloced_chunks.chunks[0]), chunk_cmp);
-
-  if (result != NULL) {
-    assert(list->chunks <= result);
-    return result - list->chunks;
-  } else
-    return -1;
+  // Chunk key = {
+  //     .start = ptr,
+  // };
+  // Chunk *result = bsearch(&key, list->chunks, list->count,
+  //                         sizeof(alloced_chunks.chunks[0]), chunk_cmp);
+  //
+  // if (result != NULL) {
+  //   assert(list->chunks <= result);
+  //   return result - list->chunks;
+  // } else
+  //   return -1;
 }
 
 void chunk_list_remove(ChunkList *list, size_t index) {
@@ -84,21 +93,46 @@ void chunk_list_remove(ChunkList *list, size_t index) {
   list->count--;
 }
 
-// Bad O(N)
-void chunk_list_merge(ChunkList *list) {
-  for (size_t i = 0; i < heap_freed.count - 1; i++) {
-    if (((char *)list->chunks[i].start + list->chunks[i].size) ==
-        list->chunks[i + 1].start) {
-      Chunk tmp = list->chunks[i + 1];
-      list->chunks[i].size += tmp.size;
-      chunk_list_remove(&heap_freed, i + 1);
+void chunk_list_merge(ChunkList *dst, ChunkList *src) {
+  dst->count = 0;
+
+  for (size_t i = 0; i < src->count; i++) {
+    const Chunk chunk = src->chunks[i];
+
+    if (dst->count > 0) {
+      // 判断是否能相邻合并内存
+      if ((char *)dst->chunks[dst->count - 1].start +
+              dst->chunks[dst->count - 1].size ==
+          chunk.start) {
+        dst->chunks[dst->count - 1].size += chunk.size;
+      } else {
+        chunk_list_insert(dst, chunk.start, chunk.size);
+      }
+    } else {
+      chunk_list_insert(dst, chunk.start, chunk.size);
     }
   }
 }
 
+// Bad O(N)
+// void chunk_merge(ChunkList *list) {
+//   for (size_t i = 0; i < heap_freed.count - 1; i++) {
+//     if (((char *)list->chunks[i].start + list->chunks[i].size) ==
+//         list->chunks[i + 1].start) {
+//       Chunk tmp = list->chunks[i + 1];
+//       list->chunks[i].size += tmp.size;
+//       chunk_list_remove(&heap_freed, i + 1);
+//     }
+//   }
+// }
+
+// 内存合并功能应该在这个函数中调用,在分配内存的时候再检查
 void *heap_alloc(size_t size) {
   if (size <= 0)
     return NULL;
+
+  chunk_list_merge(&tmp_chunks, &heap_freed);
+  heap_freed = tmp_chunks;
 
   for (size_t i = 0; i < heap_freed.count; i++) {
     if (heap_freed.chunks[i].size >= size) {
@@ -136,7 +170,7 @@ void heap_free(void *ptr) {
   chunk_list_insert(&heap_freed, alloced_chunks.chunks[index].start, size);
   chunk_list_remove(&alloced_chunks, (size_t)index);
 
-  chunk_list_merge(&heap_freed);
+  // chunk_merge(&heap_freed);
 
   printf("Freed memory at %p, size: %zu\n", ptr, size);
 }
@@ -156,14 +190,14 @@ void chunk_list_dump(ChunkList *list, ChunkList *freelist) {
 
 int main(void) {
   void *tab[10];
-  chunk_list_dump(&alloced_chunks, &heap_freed);
   for (int i = 1; i <= 10; i++) {
     tab[i] = heap_alloc(i);
   }
-  chunk_list_dump(&alloced_chunks, &heap_freed);
-  heap_free(tab[5]);
-  chunk_list_dump(&alloced_chunks, &heap_freed);
-  heap_free(tab[6]);
-  printf("[DEBUG]\n");
+  for (int i = 1; i <= 10; i++) {
+    if (i % 2 != 0) {
+      heap_free(tab[i]);
+    }
+  }
+  heap_alloc(10);
   chunk_list_dump(&alloced_chunks, &heap_freed);
 }
