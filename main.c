@@ -84,6 +84,18 @@ void chunk_list_remove(ChunkList *list, size_t index) {
   list->count--;
 }
 
+// Bad O(N)
+void chunk_list_merge(ChunkList *list) {
+  for (size_t i = 0; i < heap_freed.count - 1; i++) {
+    if (((char *)list->chunks[i].start + list->chunks[i].size) ==
+        list->chunks[i + 1].start) {
+      Chunk tmp = list->chunks[i + 1];
+      list->chunks[i].size += tmp.size;
+      chunk_list_remove(&heap_freed, i + 1);
+    }
+  }
+}
+
 void *heap_alloc(size_t size) {
   if (size <= 0)
     return NULL;
@@ -119,11 +131,12 @@ void heap_free(void *ptr) {
     return;
   }
 
-  // TODO:: implement a memory comflact
   size_t size = alloced_chunks.chunks[index].size;
 
   chunk_list_insert(&heap_freed, alloced_chunks.chunks[index].start, size);
   chunk_list_remove(&alloced_chunks, (size_t)index);
+
+  chunk_list_merge(&heap_freed);
 
   printf("Freed memory at %p, size: %zu\n", ptr, size);
 }
@@ -149,5 +162,8 @@ int main(void) {
   }
   chunk_list_dump(&alloced_chunks, &heap_freed);
   heap_free(tab[5]);
+  chunk_list_dump(&alloced_chunks, &heap_freed);
+  heap_free(tab[6]);
+  printf("[DEBUG]\n");
   chunk_list_dump(&alloced_chunks, &heap_freed);
 }
